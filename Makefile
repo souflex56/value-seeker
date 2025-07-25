@@ -7,7 +7,7 @@ help:
 	@echo "AI投资分析师 Value-Seeker 开发工具"
 	@echo ""
 	@echo "可用命令:"
-	@echo "  setup          - 完整环境设置 (conda + poetry)"
+	@echo "  setup          - 完整环境设置 (conda + pip)"
 	@echo "  install        - 安装生产依赖"
 	@echo "  install-dev    - 安装开发依赖"
 	@echo "  test           - 运行测试"
@@ -26,14 +26,9 @@ setup:
 		echo "❌ 请先安装 Anaconda 或 Miniconda"; \
 		exit 1; \
 	fi
-	@if ! command -v poetry >/dev/null 2>&1; then \
-		echo "📦 安装 Poetry..."; \
-		curl -sSL https://install.python-poetry.org | python3 -; \
-	fi
 	@echo "🐍 创建 conda 环境..."
 	conda env create -f environment.yml --force
-	@echo "📚 安装 Python 依赖..."
-	conda run -n value-seeker poetry install
+	@echo "📚 Python 依赖通过 conda 自动安装"
 	@echo "📋 复制环境变量配置..."
 	@if [ ! -f .env ]; then cp .env.example .env; fi
 	@echo "✅ 环境设置完成!"
@@ -42,31 +37,31 @@ setup:
 
 # 安装生产依赖
 install:
-	poetry install --only=main
+	pip install -r requirements.txt
 
 # 安装开发依赖
 install-dev:
-	poetry install
+	pip install -r requirements.txt
 
 # 运行测试
 test:
-	poetry run pytest
+	pytest
 
 # 运行测试并生成覆盖率报告
 test-cov:
-	poetry run pytest --cov=src --cov-report=html --cov-report=term-missing
+	pytest --cov=src --cov-report=html --cov-report=term-missing
 
 # 代码检查
 lint:
-	poetry run flake8 src tests
-	poetry run mypy src
-	poetry run black --check src tests
-	poetry run isort --check-only src tests
+	flake8 src tests
+	mypy src
+	black --check src tests
+	isort --check-only src tests
 
 # 代码格式化
 format:
-	poetry run black src tests
-	poetry run isort src tests
+	black src tests
+	isort src tests
 
 # 清理临时文件
 clean:
@@ -82,7 +77,7 @@ clean:
 
 # 运行主程序
 run:
-	poetry run python main.py
+	python main.py
 
 # 构建Docker镜像
 docker-build:
@@ -100,12 +95,12 @@ docker-run:
 
 # 开发模式运行 (带热重载)
 dev:
-	poetry run python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
+	python -m uvicorn main:app --reload --host 0.0.0.0 --port 8000
 
 # 安装pre-commit钩子
 install-hooks:
-	poetry run pre-commit install
+	pre-commit install
 
 # 运行pre-commit检查
 pre-commit:
-	poetry run pre-commit run --all-files
+	pre-commit run --all-files

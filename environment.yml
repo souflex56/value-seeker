@@ -24,7 +24,6 @@ dependencies:
   
   # Python包管理
   - pip
-  - poetry>=1.6.0
   
   # 开发工具
   - jupyter

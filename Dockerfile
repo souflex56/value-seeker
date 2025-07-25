@@ -22,23 +22,18 @@ RUN apt-get update && apt-get install -y \
 # 创建符号链接
 RUN ln -s /usr/bin/python3.9 /usr/bin/python
 
-# 安装Poetry
-RUN curl -sSL https://install.python-poetry.org | python3 -
-ENV PATH="/root/.local/bin:$PATH"
-
 # 设置工作目录
 WORKDIR /app
 
 # 复制项目文件
-COPY pyproject.toml poetry.lock* ./
+COPY requirements.txt ./
 COPY src/ ./src/
 COPY config/ ./config/
 COPY prompts/ ./prompts/
 COPY main.py ./
 
 # 安装Python依赖
-RUN poetry config virtualenvs.create false \
-    && poetry install --only=main --no-interaction --no-ansi
+RUN pip install --no-cache-dir -r requirements.txt
 
 # 创建必要的目录
 RUN mkdir -p data/reports data/dyp_corpus deploy/vector_store logs
