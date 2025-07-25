@@ -1,0 +1,78 @@
+# AI投资分析师 Value-Seeker 配置文件
+
+# 模型配置
+model_config:
+  base_model: "Qwen/Qwen2.5-7B-Instruct"
+  device: "auto"  # auto, cuda, mps, cpu
+  max_memory: "20GB"
+  quantization: "4bit"  # 4bit, 8bit, none
+  embedding_model: "BAAI/bge-m3"
+  reranker_model: "BAAI/bge-reranker-large"
+
+# 数据配置
+data_config:
+  reports_dir: "./data/reports/"
+  corpus_dir: "./data/dyp_corpus/"
+  chunk_size: 512
+  chunk_overlap: 50
+  vector_store_path: "./deploy/vector_store/"
+
+# 检索配置
+retrieval_config:
+  top_k: 10
+  rerank_top_k: 3
+  similarity_threshold: 0.7
+
+# Prompt配置
+prompt_config:
+  query_rewrite_version: "v1"
+  generation_version: "v1"
+  style_version: "v1"
+  judge_version: "v2"
+
+# 训练配置
+training_config:
+  learning_rate: 2e-5
+  batch_size: 4
+  num_epochs: 3
+  warmup_steps: 100
+  save_steps: 500
+
+# 系统配置
+system_config:
+  max_concurrent_users: 5
+  response_timeout: 10  # 秒
+  log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+  debug_mode: false
+
+# Web界面配置
+web_config:
+  host: "0.0.0.0"
+  port: 7860
+  share: false
+  auth: null  # [username, password] 或 null
+
+# 评估配置
+evaluation_config:
+  ragas_metrics:
+    - "faithfulness"
+    - "answer_relevancy"
+    - "context_precision"
+  target_scores:
+    faithfulness: 0.85
+    answer_relevancy: 0.9
+    context_precision: 0.8
+  llm_judge_score_threshold: 4.0
+
+# 部署配置
+deployment_config:
+  docker:
+    image_name: "value-seeker"
+    tag: "latest"
+  monitoring:
+    enable_metrics: true
+    metrics_port: 8080
+  logging:
+    log_dir: "./logs"
+    max_file_size: 10485760  # 10MB
+    backup_count: 5

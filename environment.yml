@@ -1,0 +1,68 @@
+# AI投资分析师 Value-Seeker 环境配置
+# 默认配置：macOS MPS (Apple Silicon)
+# 使用方法: conda env create -f environment.yml
+
+name: value-seeker
+channels:
+  - pytorch
+  - conda-forge
+  - defaults
+
+dependencies:
+  # Python环境 (3.10+ 支持Qwen2.5)
+  - python>=3.10,<3.12
+  
+  # PyTorch MPS版本 (Apple Silicon优化)
+  - pytorch::pytorch>=2.0.0
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  
+  # 系统依赖
+  - git
+  - curl
+  - wget
+  
+  # Python包管理
+  - pip
+  - poetry>=1.6.0
+  
+  # 开发工具
+  - jupyter
+  - ipython
+  
+  # 通过pip安装的包
+  - pip:
+    # 核心AI框架 (Qwen2.5兼容版本)
+    - transformers>=4.45.0
+    - accelerate>=0.25.0
+    - peft>=0.7.0
+    - trl>=0.7.0
+    # 文档处理
+    # - unstructured>=0.10.0  # 暂时注释掉，避免依赖冲突
+    - langchain>=0.3.0
+    - langchain-community>=0.3.0
+    - langchain-core>=0.3.0
+    - pypdf>=3.17.0
+    - pandas>=2.0.0
+    # 向量检索 (CPU版本，MPS不支持faiss-gpu)
+    - faiss-cpu>=1.7.4
+    - sentence-transformers>=2.2.0
+    # Web界面
+    - gradio>=4.0.0
+    # 配置和工具
+    - pyyaml>=6.0
+    - python-dotenv>=1.0.0
+    - click>=8.1.0
+    # 评估
+    - ragas>=0.1.0
+    - wandb>=0.16.0
+    # 生产部署
+    - uvicorn>=0.23.0
+    - fastapi>=0.104.0
+    - gunicorn>=21.2.0
+    # 开发工具
+    - pytest>=7.4.0
+    - pytest-cov>=4.1.0
+    - black>=23.0.0
+    - flake8>=6.0.0
+    - mypy>=1.5.0
