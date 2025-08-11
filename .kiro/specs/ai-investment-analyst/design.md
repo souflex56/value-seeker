@@ -92,84 +92,93 @@ prompt_config:
 
 ### 2. 文档处理模块 (DocumentProcessor)
 
-**设计目标**: 高效解析PDF文档，提取结构化信息，支持表格处理
+**设计目标**: 实现高保真的父子文档分块策略，支持表格和文本的分离处理
 
 **核心接口**:
 ```python
 class DocumentProcessor:
     def __init__(self, config: DataConfig)
-    def parse_pdf(self, pdf_path: str) -> List[Document]
-    def chunk_documents(self, documents: List[Document]) -> List[Chunk]
-    def extract_metadata(self, document: Document) -> Dict[str, Any]
-    def process_tables(self, document: Document) -> List[Table]
-    def extract_financial_data(self, tables: List[Table]) -> Dict[str, Any]
+    def parse_pdf_with_parent_child(self, pdf_path: str) -> Tuple[List[ParentChunk], List[ChildChunk]]
+    def extract_tables_with_pdfplumber(self, pdf_path: str) -> List[TableChunk]
+    def extract_text_with_unstructured(self, pdf_path: str, table_boundaries: List[Dict]) -> List[TextElement]
+    def create_parent_child_relationships(self, tables: List[TableChunk], texts: List[TextElement]) -> Tuple[List[ParentChunk], List[ChildChunk]]
+    def chunk_long_text(self, text_elements: List[TextElement]) -> List[ChildChunk]
 ```
 
 **数据模型**:
 ```python
 @dataclass
-class Document:
-    content: str
+class ParentChunk:
+    parent_id: str
+    content: str  # 完整的页面内容或逻辑章节
     metadata: Dict[str, Any]
-    tables: List[Table]
-    source: str
-    page_number: int
+    page_numbers: List[int]
+    chunk_type: str  # "page", "section"
 
 @dataclass
-class Chunk:
+class ChildChunk:
+    child_id: str
+    parent_id: str  # 关联的父分块ID
     content: str
     metadata: Dict[str, Any]
     embedding: Optional[np.ndarray]
-    chunk_id: str
-    document_id: str
+    chunk_type: str  # "table", "text"
+    page_number: int
+    boundary_box: Optional[Dict[str, float]]
 
 @dataclass
-class Table:
-    data: pd.DataFrame
-    caption: str
+class TableChunk:
+    table_id: str
+    markdown_content: str  # 序列化的Markdown表格
     page_number: int
+    boundary_box: Dict[str, float]  # {"x0": float, "y0": float, "x1": float, "y1": float}
     table_type: str  # "financial", "summary", "other"
 ```
 
 **处理流程**:
-1. PDF解析 (unstructured)
-2. 表格识别和提取
-3. 文本清理和标准化
-4. 智能分块 (保持语义完整性)
-5. 元数据提取和标注
+1. **高保真表格提取**: 使用pdfplumber遍历PDF页面，提取所有结构化表格，序列化为Markdown字符串
+2. **高保真文本提取**: 使用unstructured解析PDF，传入表格边界框列表，跳过表格区域避免重复处理
+3. **文本二次分块**: 对较长文本段落使用语义分块或递归字符分块进行切分
+4. **构建父子关系**: 定义父分块（页面或章节），创建子分块（表格Markdown和文本小块）
+5. **关联与存储**: 为子分块添加元数据，向量化存入向量数据库，父分块存入文档存储
 
-### 3. 检索系统 (RetrievalSystem)
+### 3. 父子文档检索系统 (ParentChildRetrievalSystem)
 
-**设计目标**: 实现高精度的两阶段检索，支持混合检索策略
+**设计目标**: 实现父子文档检索策略，通过子分块检索获取完整父分块上下文
 
 **核心接口**:
 ```python
-class RetrievalSystem:
+class ParentChildRetrievalSystem:
     def __init__(self, config: RetrievalConfig)
-    def build_index(self, documents: List[Chunk]) -> None
-    def retrieve(self, queries: List[str], top_k: int = 10) -> List[RetrievalResult]
-    def rerank(self, query: str, candidates: List[Chunk], top_k: int = 3) -> List[Chunk]
-    def hybrid_search(self, query: str) -> List[Chunk]
-    def update_index(self, new_documents: List[Chunk]) -> None
+    def build_child_index(self, child_chunks: List[ChildChunk]) -> None
+    def store_parent_documents(self, parent_chunks: List[ParentChunk]) -> None
+    def retrieve_parent_via_children(self, queries: List[str], top_k: int = 10) -> List[ParentChunk]
+    def search_child_chunks(self, query: str) -> List[ChildChunk]
+    def get_parent_chunks(self, parent_ids: List[str]) -> List[ParentChunk]
+    def rerank_child_results(self, query: str, candidates: List[ChildChunk]) -> List[ChildChunk]
 ```
 
 **检索流程**:
 ```mermaid
 graph LR
-    A[多视角查询] --> B[向量检索]
-    B --> C[候选文档池]
-    C --> D[重排序模型]
-    D --> E[最终结果]
-    
-    F[关键词检索] --> C
-    G[语义相似度] --> C
+    A[用户查询] --> B[子分块向量检索]
+    B --> C[检索到相关子分块]
+    C --> D[提取父分块ID]
+    D --> E[从文档存储获取父分块]
+    E --> F[完整父分块上下文]
+    F --> G[提交给LLM生成答案]
 ```
 
+**存储架构**:
+1. **向量数据库**: 存储所有子分块的向量表示，用于相似度检索
+2. **文档存储**: 键值存储，存储完整的父分块内容，以父分块ID为键
+3. **元数据索引**: 维护子分块到父分块的映射关系
+
 **检索策略**:
-1. **向量检索**: 使用BGE-M3生成查询和文档嵌入
-2. **重排序**: 使用BGE-Reranker精确排序
-3. **混合检索**: 结合向量相似度和关键词匹配
-4. **结果融合**: 多查询结果合并和去重
+1. **子分块检索**: 在向量数据库中检索最相关的子分块
+2. **父分块提取**: 从子分块元数据中提取对应的父分块ID
+3. **完整上下文获取**: 从文档存储中取出完整的父分块内容
+4. **上下文优化**: 去重和排序父分块，确保上下文质量
 
 ### 4. Prompt管理系统 (PromptManager)
 
@@ -271,16 +280,16 @@ class AnalysisResult:
     query_id: str
     answer: str
     confidence_score: float
-    sources: List[SourceCitation]
+    sources: List[ParentChunkCitation]
     processing_time: float
     style_score: float
 
 @dataclass
-class SourceCitation:
-    document_id: str
-    chunk_id: str
-    content: str
-    page_number: int
+class ParentChunkCitation:
+    parent_id: str
+    child_ids: List[str]  # 触发检索的子分块ID列表
+    content: str  # 完整的父分块内容
+    page_numbers: List[int]
     relevance_score: float
     citation_text: str
 ```
@@ -291,11 +300,17 @@ class SourceCitation:
 - 索引类型: IndexHNSWFlat
 - 维度: 1024 (BGE-M3)
 - 距离度量: 余弦相似度
+- 存储内容: 所有子分块的向量表示
 
-**文档存储**:
-- 原始PDF文件
-- 解析后的结构化数据
-- 文档元数据和索引
+**文档存储 (键值存储)**:
+- 键: 父分块唯一ID
+- 值: 完整的父分块内容
+- 用途: 通过父分块ID快速获取完整上下文
+
+**元数据索引**:
+- 子分块到父分块的映射关系
+- 页码和边界框信息
+- 分块类型标识（表格/文本）
 
 ## 错误处理
 

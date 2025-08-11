@@ -43,6 +43,7 @@ dependencies:
     - langchain-core>=0.3.0
     - pypdf>=3.17.0
     - pandas>=2.0.0
+    - pdfplumber>=0.9.0
     # 向量检索 (CPU版本，MPS不支持faiss-gpu)
     - faiss-cpu>=1.7.4
     - sentence-transformers>=2.2.0
