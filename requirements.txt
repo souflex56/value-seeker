@@ -13,6 +13,7 @@ unstructured>=0.10.0
 langchain>=0.0.300
 langchain-community>=0.0.20
 pypdf>=3.17.0
+pdfplumber>=0.9.0
 pandas>=2.0.0
 
 # 向量检索
